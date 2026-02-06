@@ -1,69 +1,28 @@
-name: Auto-assign bug issues to Copilot
+name: Copilot Assignment Reminder
 
 on:
   issues:
     types: [labeled]
 
 jobs:
-  assign-to-copilot:
+  remind-copilot:
     runs-on: ubuntu-latest
     if: github.event.label.name == 'bug-fix'
     
     steps:
-      - name: Assign issue to Copilot
+      - name: Add reminder comment
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.COPILOT_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const issue_number = context.issue.number;
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            
-            console.log(`Attempting to assign issue #${issue_number} to Copilot...`);
-            
-            try {
-              // Try using request instead of rest
-              const response = await github.request('POST /repos/{owner}/{repo}/issues/{issue_number}/assignees', {
-                owner: owner,
-                repo: repo,
-                issue_number: issue_number,
-                assignees: ['copilot'],
-                headers: {
-                  'X-GitHub-Api-Version': '2022-11-28'
-                }
-              });
-              
-              console.log('API Response:', response.status);
-              console.log('Assignees returned:', response.data.assignees.map(a => a.login));
-              
-              if (response.data.assignees.some(a => a.login === 'copilot')) {
-                console.log('✅ Copilot assigned successfully');
-                
-                await github.rest.issues.createComment({
-                  owner,
-                  repo,
-                  issue_number,
-                  body: '🤖 **Copilot has been assigned!** A PR will be created shortly.'
-                });
-              } else {
-                console.log('⚠️ API succeeded but Copilot not in assignees list');
-                throw new Error('Copilot assignment did not persist');
-              }
-              
-            } catch (error) {
-              console.error('❌ Error:', error.message);
-              console.error('Error details:', JSON.stringify(error, null, 2));
-              
-              await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number,
-                body: '⚠️ **Automatic Copilot assignment failed.**\n\n' +
-                      '**Next steps:**\n' +
-                      '1. Please manually assign this issue to @copilot\n' +
-                      '2. Copilot will then create a PR automatically\n\n' +
-                      '**Error:** `' + error.message + '`'
-              });
-              
-              throw error;
-            }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: '🤖 **Bug fix issue detected!**\n\n' +
+                    '**To have Copilot create a PR automatically:**\n' +
+                    '1. Click **Assignees** on the right sidebar →\n' +
+                    '2. Select **@copilot** from the dropdown\n' +
+                    '3. Copilot will analyze and create a PR within 5 minutes\n\n' +
+                    '💡 **Tip:** You can also use Copilot in your IDE to help fix this issue!'
+            });

@@ -10,59 +10,27 @@ jobs:
     if: github.event.label.name == 'bug-fix'
     
     steps:
-      - name: Assign issue to Copilot
+      - name: Assign to Copilot
+        run: |
+          gh issue edit ${{ github.event.issue.number }} \
+            --repo ${{ github.repository }} \
+            --add-assignee copilot
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_TOKEN }}  # Use PAT instead of GITHUB_TOKEN
+      
+      - name: Comment on issue
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.COPILOT_TOKEN }}  # Use PAT here too
           script: |
-            const issue_number = context.issue.number;
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            
-            console.log(`Assigning issue #${issue_number} to Copilot...`);
-            
-            // Check if already assigned
-            const { data: currentIssue } = await github.rest.issues.get({
-              owner,
-              repo,
-              issue_number
-            });
-            
-            const currentAssignees = currentIssue.assignees.map(a => a.login);
-            
-            if (currentAssignees.includes('copilot')) {
-              console.log('✅ Copilot is already assigned');
-              await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number,
-                body: '✅ Copilot is already assigned to this issue and will create a PR shortly.'
-              });
-              return;
-            }
-            
-            // Assign to Copilot
-            const response = await github.rest.issues.addAssignees({
-              owner,
-              repo,
-              issue_number,
-              assignees: ['copilot']
-            });
-            
-            console.log('✅ Assignment request sent');
-            
-            // Post confirmation comment immediately (don't wait for verification)
             await github.rest.issues.createComment({
-              owner,
-              repo,
-              issue_number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
               body: '🤖 **Copilot has been assigned to this issue!**\n\n' +
                     'Copilot will analyze the issue and create a pull request automatically.\n\n' +
-                    '**What to expect:**\n' +
-                    '- 👀 Copilot will react to this issue\n' +
-                    '- 🔧 Copilot will analyze and work on the fix\n' +
-                    '- 📝 A pull request will be created within a few minutes\n\n' +
-                    '⏱️ Please allow 2-5 minutes for Copilot to complete the work.'
+                    '**Expected timeline:**\n' +
+                    '- Next few minutes: Copilot analyzes the issue 👀\n' +
+                    '- Within 5-10 minutes: Pull request is created 📝\n\n' +
+                    'You can track progress by watching for reactions and comments from Copilot.'
             });
-            
-            console.log('✅ Copilot assigned successfully');

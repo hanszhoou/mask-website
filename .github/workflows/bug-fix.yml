@@ -10,63 +10,22 @@ jobs:
     if: github.event.label.name == 'bug-fix'
     
     steps:
-      - name: Assign issue to Copilot and verify
+      - name: Assign to Copilot
+        run: |
+          gh issue edit ${{ github.event.issue.number }} \
+            --repo ${{ github.repository }} \
+            --add-assignee copilot
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Comment on issue
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const issue_number = context.issue.number;
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            
-            console.log(`Attempting to assign issue #${issue_number} to Copilot...`);
-            
-            // Try to assign
-            await github.rest.issues.addAssignees({
-              owner,
-              repo,
-              issue_number,
-              assignees: ['copilot']
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: '🤖 Copilot has been assigned and will create a PR shortly!'
             });
-            
-            console.log('Assignment API call completed');
-            
-            // Wait a few seconds for GitHub to process
-            await new Promise(resolve => setTimeout(resolve, 5000));
-            
-            // Verify the assignment actually stuck
-            const { data: issue } = await github.rest.issues.get({
-              owner,
-              repo,
-              issue_number
-            });
-            
-            const assignees = issue.assignees.map(a => a.login);
-            console.log(`Assignees after assignment: ${assignees.join(', ') || 'NONE'}`);
-            
-            if (assignees.includes('copilot')) {
-              console.log('✅ SUCCESS: Copilot is assigned!');
-              await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number,
-                body: '✅ **Copilot has been assigned!** Watch for a 👀 reaction and automatic PR creation.'
-              });
-            } else {
-              console.log('❌ FAILED: Copilot assignment did not persist');
-              await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number,
-                body: '⚠️ **Copilot coding agent is not enabled for this organization.**\n\n' +
-                      '**To enable this feature, an organization admin must:**\n\n' +
-                      '1. Purchase **GitHub Copilot Business** ($19/user/month) or **Enterprise** ($39/user/month)\n' +
-                      '2. Go to Organization Settings → Copilot → Policies\n' +
-                      '3. Enable "Copilot coding agent"\n' +
-                      '4. Add this repository to allowed repositories\n\n' +
-                      '📚 [Learn more about Copilot for Organizations](https://docs.github.com/en/copilot/managing-copilot/managing-copilot-for-your-organization)\n\n' +
-                      `**Organization:** \`${owner}\`\n` +
-                      '**Current Status:** ❌ Coding agent not available'
-              });
-              core.setFailed('Copilot coding agent is not enabled for this repository');
-            }

@@ -1,0 +1,19 @@
+name: Auto-assign to Copilot using CLI
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  assign-to-copilot:
+    runs-on: ubuntu-latest
+    if: github.event.label.name == 'bug-fix'
+    
+    steps:
+      - name: Assign to Copilot
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue edit ${{ github.event.issue.number }} \
+            --repo ${{ github.repository }} \
+            --add-assignee copilot
